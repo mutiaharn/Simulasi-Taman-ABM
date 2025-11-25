@@ -1,0 +1,12 @@
+activity_code,activity_name,compatible_zone_types,base_dwell_min,dwell_sd_min,energy_delta_per_min,crowd_penalty_weight,heat_penalty_weight
+RUN,running,track|inner_path,25,10,-1.2,0.3,0.7
+WALK,walking,track|inner_path|garden|picnic_area|playground|fitness_zone|fountain_zone,15,8,-0.3,0.2,0.4
+STATEX,static_exercise,fitness_zone|garden|gazebo,20,8,-0.8,0.4,0.6
+CYCLE,cycling,track,30,12,-1.0,0.3,0.6
+STRETCH,stretching,fitness_zone|garden,10,5,-0.1,0.2,0.5
+REST,resting,bench_zone|gazebo|picnic_area,20,10,0.5,0.8,0.6
+PLAY,playing,playground|garden,30,10,-0.4,0.2,0.4
+PHOTO,photography,fountain_zone|garden|gazebo|playground|fitness_zone,10,6,0.1,0.3,0.3
+READ,reading,bench_zone|gazebo,30,15,0.4,0.9,0.5
+EAT,eating,picnic_area|gazebo|bench_zone,25,10,0.5,0.5,0.4
+SOC,socializing,gazebo|bench_zone|picnic_area|playground|garden|fountain_zone,35,12,0.3,0.4,0.3
