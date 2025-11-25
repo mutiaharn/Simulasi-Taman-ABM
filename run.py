@@ -1,35 +1,25 @@
 from src.model import ParkModel
 
-# Inisialisasi Model
-print("Memulai inisialisasi model...")
-try:
-    park_model = ParkModel(data_dir="data")
-    print("✅ Model berhasil dibuat!")
-    print(f"   - Jumlah Node (Titik Jalan): {len(park_model.G.nodes)}")
-    print(f"   - Jumlah Edge (Jalur): {len(park_model.G.edges)}")
-    print(f"   - Jumlah Zona Terdata: {len(park_model.zones_data)}")
+print("🌳 MEMULAI SIMULASI TAMAN CERDAS (Sore -> Malam) 🌳")
+park_model = ParkModel(data_dir="data")
 
-    # Coba jalankan 1 step
-    print("\nMenjalankan 1 step simulasi...")
+# --- CHEAT: Kita percepat waktu ke jam 16:50 ---
+# Kita lompat index jadwal ke yang jamnya "16:xx"
+# Cari index di data jadwal yang jamnya 16
+start_index = 0
+for idx, row in park_model.schedule_data.iterrows():
+    if row['time_slot'].startswith("16:50"):
+        start_index = idx
+        break
+
+park_model.current_schedule_row_idx = start_index
+park_model.current_schedule_row = park_model.schedule_data.iloc[start_index]
+print(f"⏩ Time Travel ke jam: {park_model.current_schedule_row['time_slot']}")
+
+print(f"\nMenjalankan simulasi 20 menit (Transisi Buka -> Tutup)...")
+
+# Jalankan 20 step (10 menit buka, 10 menit tutup)
+for i in range(20):
     park_model.step()
-    print("✅ Step berhasil dijalankan.")
 
-except Exception as e:
-    print(f"❌ Terjadi Error: {e}")
-
-    # ... (bagian atas sama)
-
-    # Coba jalankan 10 step (atau sampai agen sampai)
-    print("\nMenjalankan simulasi (Looping)...")
-    for i in range(10):
-        park_model.step()
-        
-        # Cek apakah agen sudah sampai tujuan
-        # (Kita intip list path agen pertama)
-        agent = list(park_model.agents)[0]
-        if agent.pos == agent.target_node:
-            print(f"🎉 HORE! Agen sampai di tujuan {agent.pos} pada langkah ke-{i+1}")
-            break
-
-except Exception as e:
-    print(f"❌ Terjadi Error: {e}")
+print("\n✅ Simulasi Selesai.")

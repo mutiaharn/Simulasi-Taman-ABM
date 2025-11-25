@@ -1,52 +1,114 @@
 import mesa
 import networkx as nx
+import random
 
 class ParkAgent(mesa.Agent):
-    def __init__(self, unique_id, model, start_node, target_node):
-        super().__init__(model) # Init bawaan Mesa
+    def __init__(self, unique_id, model, start_node, profile):
+        super().__init__(model)
         self.unique_id = unique_id
         self.start_node = start_node
-        self.target_node = target_node
+        self.profile = profile
         
-        # Pathfinding: Rute yang akan dilewati
-        self.path = [] 
+        # State: WALKING, ACTIVITY, LEAVING, FINISHED
+        self.state = "WALKING" 
+        self.path = []
+        self.target_node = None
+        self.activity_duration = 0
+        self.chosen_activity = None
         
-    def plan_path(self):
-        """Menghitung rute terpendek dari posisi sekarang ke tujuan."""
+        # Otak awal: Tentukan mau ngapain
+        self.plan_activity()
+
+    def plan_activity(self):
+        # 1. Pilih aktivitas berdasarkan minat tertinggi
+        interests = {
+            'running': self.profile['interest_jogging'],
+            'walking': self.profile['interest_relax'],
+            'playing': self.profile['interest_play'],
+            'exercise': self.profile['interest_fitness']
+        }
+        self.chosen_activity = max(interests, key=interests.get)
+        
+        # 2. Cari tujuan
+        target = self.model.find_dest_for_activity(self.chosen_activity, self.start_node)
+        
+        if target:
+            self.target_node = target
+            # Durasi simulasi (misal 15-45 menit)
+            self.activity_duration = random.randint(15, 45)
+            
+            self.plan_path(self.pos if self.pos else self.start_node, self.target_node)
+        else:
+            self.state = "LEAVING" # Kalau gak nemu tujuan, langsung pulang
+
+    def plan_path(self, start, end):
         try:
-            # Menggunakan algoritma Dijkstra dari NetworkX
-            # weight='length' artinya mencari jarak meter terpendek, bukan jumlah lompatan
-            self.path = nx.shortest_path(
-                self.model.G, 
-                source=self.start_node, 
-                target=self.target_node, 
-                weight='length'
-            )
-            # Hapus node pertama (karena itu posisi dia sekarang)
+            self.path = nx.shortest_path(self.model.G, start, end, weight='length')
             if len(self.path) > 0:
                 self.path.pop(0)
-                
-            print(f"Agen {self.unique_id} merencanakan rute: {len(self.path)} langkah.")
-            
         except nx.NetworkXNoPath:
-            print(f"Agen {self.unique_id} bingung: Tidak ada jalan ke {self.target_node}")
+            # Jika macet/buntu, langsung teleport pulang/hilang
+            self.state = "FINISHED"
 
     def move(self):
-        """Bergerak satu langkah menuju tujuan."""
-        # Kalau belum punya rute, hitung dulu
-        if not self.path and self.pos != self.target_node:
-            self.plan_path()
-            
-        # Kalau punya rute, jalan ke node berikutnya
         if self.path:
             next_node = self.path.pop(0)
             self.model.grid.move_agent(self, next_node)
         else:
-            # Kalau list path kosong, berarti sudah sampai
-            if self.pos == self.target_node:
-                # Diam saja (nanti di tahap selanjutnya kita kasih aktivitas)
-                pass
+            # Path habis
+            if self.state == "WALKING":
+                self.state = "ACTIVITY"
+            elif self.state == "LEAVING":
+                self.state = "FINISHED" # Sampai di gerbang keluar
+
+    def do_activity(self):
+        if self.activity_duration > 0:
+            self.activity_duration -= 1
+            
+            # Logika Lari Loop (Track)
+            if self.chosen_activity == 'running' and self.pos in self.model.track_nodes:
+                current_idx = self.model.track_nodes.index(self.pos)
+                next_idx = (current_idx + 1) % len(self.model.track_nodes)
+                next_node = self.model.track_nodes[next_idx]
+                self.model.grid.move_agent(self, next_node)
+        else:
+            # Waktu habis, saatnya pulang
+            self.go_home()
+
+    def go_home(self):
+        # Kalau sudah jalan pulang atau sudah sampai, abaikan
+        if self.state in ["LEAVING", "FINISHED"]:
+            return
+
+        # Paksa ubah status jadi Pulang
+        self.state = "LEAVING"
+        self.chosen_activity = None # Lupakan aktivitas
+        self.path = [] # Reset rute lama
+        
+        # Cari gate terdekat dari posisi sekarang untuk keluar
+        closest_gate = None
+        min_dist = float('inf')
+        
+        for gate_node in self.model.gate_nodes:
+            try:
+                dist = nx.shortest_path_length(self.model.G, self.pos, gate_node, weight='length')
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_gate = gate_node
+            except:
+                continue
+        
+        if closest_gate:
+            # Hitung rute evakuasi
+            self.plan_path(self.pos, closest_gate)
+        else:
+            # Kalau error/buntu, langsung hilangkan saja
+            self.state = "FINISHED"
 
     def step(self):
-        """Apa yang dilakukan agen setiap 'tik' waktu."""
-        self.move()
+        if self.state == "WALKING":
+            self.move()
+        elif self.state == "ACTIVITY":
+            self.do_activity()
+        elif self.state == "LEAVING":
+            self.move()
